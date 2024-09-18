@@ -1,0 +1,626 @@
+defmodule FebrdBotWeb.ChatLive do
+  use Phoenix.LiveView
+
+  alias Needlepoint
+  @api_key "OPEN_AI_API"
+
+  def render(assigns) do
+    ~H"""
+    <div id="chat-container">
+      <header id="chat-header">
+        <div id="header-content">
+          <h1>Febrid Bot - NLP + GPT Powered</h1>
+
+        </div>
+
+      </header>
+      <div id="chat-box">
+        <div id="messages">
+          <%= for {message, response} <- @messages do %>
+            <%= if message == nil do %>
+              <% message = "hi" %>
+              <div class="message user-message animate-in">
+                <div class="message-content">
+                  <strong>You:</strong>
+                  <p><%= message %></p>
+                </div>
+              </div>
+            <% else %>
+              <div class="message user-message animate-in">
+                <div class="message-content">
+                  <strong>You:</strong>
+                  <p><%= message %></p>
+                </div>
+              </div>
+            <% end %>
+
+            <div class="message bot-message animate-in">
+              <div class="message-content">
+                <strong>Bot:</strong>
+                <p><%= response %></p>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      <form phx-submit="send_message" id="message-form">
+        <input type="text" name="message" placeholder="Type your message" autofocus autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Arial', sans-serif;
+        background: #f0f2f5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        transition: background-color 0.3s;
+      }
+      #chat-container {
+        width: 100%;
+        max-width: 600px;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        height: 90vh;
+        overflow: hidden;
+        transition: background-color 0.3s;
+      }
+      #chat-header {
+        background: #007bff;
+        color: #fff;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        border-bottom: 2px solid #0056b3;
+      }
+      #header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      #header-content h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 600;
+      }
+      #settings-button {
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 24px;
+        cursor: pointer;
+        transition: color 0.3s;
+      }
+      #settings-button:hover {
+        color: #ddd;
+      }
+      #mode-selector {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 16px;
+        background: #0056b3;
+        color: #fff;
+        border-top: 1px solid #003d79;
+      }
+      #mode-selector button {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        background: #007bff;
+        color: #fff;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.3s;
+      }
+      #mode-selector button.active {
+        background: #003d79;
+      }
+      #mode-selector button:hover {
+        background: #0056b3;
+        transform: scale(1.05);
+      }
+      #chat-box {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background: #fafafa;
+        position: relative;
+        background: #f8f9fa;
+      }
+      #messages {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .message {
+        display: flex;
+        align-items: center;
+        max-width: 80%;
+        border-radius: 12px;
+        padding: 12px;
+        position: relative;
+        transition: background-color 0.3s, transform 0.3s;
+      }
+      .user-message {
+        background: #d1ffd6;
+        align-self: flex-end;
+        border-radius: 15px 15px 0 15px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        transform: scale(1);
+      }
+      .bot-message {
+        background: #e0e0e0;
+        align-self: flex-start;
+        border-radius: 15px 15px 15px 0;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        transform: scale(1);
+      }
+      .message-content {
+        display: flex;
+        flex-direction: column;
+      }
+      .message-content strong {
+        color: #333;
+        margin-bottom: 6px;
+      }
+      .message-content p {
+        margin: 0;
+        line-height: 1.6;
+      }
+      #message-form {
+        display: flex;
+        padding: 12px;
+        background: #ffffff;
+        border-top: 2px solid #ddd;
+      }
+      #message-form input {
+        flex: 1;
+        padding: 12px;
+        border: 2px solid #ccc;
+        border-radius: 20px;
+        outline: none;
+        transition: border-color 0.3s, box-shadow 0.3s;
+      }
+      #message-form input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 8px rgba(0, 123, 255, 0.2);
+      }
+      #message-form button {
+        padding: 12px 24px;
+        margin-left: 10px;
+        border: none;
+        border-radius: 20px;
+        background: #007bff;
+        color: #fff;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.3s;
+      }
+      #message-form button:hover {
+        background: #0056b3;
+        transform: scale(1.05);
+      }
+      #message-form button:active {
+        background: #003d79;
+      }
+      @media (max-width: 600px) {
+        #chat-container {
+          width: 100%;
+          height: 100vh;
+        }
+        .message {
+          max-width: 95%;
+        }
+        #message-form input {
+          font-size: 14px;
+        }
+        #message-form button {
+          font-size: 14px;
+        }
+      }
+      .animate-in {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const messagesContainer = document.getElementById('messages');
+
+      // Scroll to bottom when new message is added
+      const scrollToBottom = () => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      };
+
+      scrollToBottom();
+
+      // Attach scroll event listener to maintain scroll position
+      messagesContainer.addEventListener('DOMNodeInserted', scrollToBottom);
+
+      // Toggle dark/light mode
+      const lightModeButton = document.getElementById('light-mode');
+      const darkModeButton = document.getElementById('dark-mode');
+      const body = document.body;
+      const chatContainer = document.getElementById('chat-container');
+
+      lightModeButton.addEventListener('click', () => {
+        body.style.backgroundColor = '#f0f2f5';
+        chatContainer.style.backgroundColor = '#ffffff';
+        lightModeButton.classList.add('active');
+        darkModeButton.classList.remove('active');
+      });
+
+      darkModeButton.addEventListener('click', () => {
+        body.style.backgroundColor = '#333';
+        chatContainer.style.backgroundColor = '#444';
+        lightModeButton.classList.remove('active');
+        darkModeButton.classList.add('active');
+      });
+    });
+    </script>
+    """
+  end
+
+  def mount(_params, _session, socket) do
+    # Set the initial state with the welcome message
+    welcome_message = "Hi, welcome to Febrid Bot! How can I assist you today?"
+    messages = [{nil, welcome_message}]
+    {:ok, assign(socket, messages: messages, welcome_shown: true, api_available: true)}
+  end
+
+  def handle_event("send_message", %{"message" => message}, socket) do
+    messages = socket.assigns.messages
+
+    response =
+      if socket.assigns.api_available do
+        generate_response(message)
+      else
+        generate_response_static(message)
+      end
+
+    new_socket =
+      if response == "Sorry, your quota for the GPT model is insufficient. Your response will be generated statically based on our NLP training set." do
+        assign(socket, api_available: false)
+      else
+        socket
+      end
+
+    messages = [{message, response} | messages]
+    {:noreply, assign(new_socket, messages: Enum.reverse(messages))}
+  end
+
+  defp generate_response_static(message) do
+    tokens = Needlepoint.tokenize(message)
+    Enum.map(tokens, &Needlepoint.stem(&1))
+
+    case analyze_sentiment(message) do
+      {:forbidden, _} ->
+        "Sorry, your message contains inappropriate content."
+
+      {:ok, sentiment} ->
+        cond do
+          match_greetings(message) ->
+            Enum.random([
+              "Hi there! How can I assist you today?",
+              "Hello! What can I do for you?",
+              "Hey! Need any help?",
+              "Greetings! How can I be of service?",
+              "Hi! What can I help you with today?"
+            ])
+
+          match_farewells(message) ->
+            Enum.random([
+              "Goodbye! Have a great day!",
+              "See you later! Take care!",
+              "Bye! Hope to talk to you soon!",
+              "Farewell! Stay safe!",
+              "Goodbye! Reach out anytime you need help!"
+            ])
+
+          match_questions(message) ->
+            Enum.random([
+              "That's an interesting question! Let me think...",
+              "Great question! I'll do my best to answer.",
+              "I love questions! What would you like to know?",
+              "Let's explore that question together!",
+              "I'm here to help with your questions. Fire away!"
+            ])
+
+          length(tokens) > 10 ->
+            Enum.random([
+              "You have quite a bit to say. Let me process that...",
+              "That's a lot to take in! Give me a moment...",
+              "I see you have a lot on your mind. I'll go through it."
+            ])
+
+          sentiment == :positive ->
+            Enum.random([
+              "I sense a positive vibe! How can I help you further?",
+              "You seem to be in a great mood! How can I assist?",
+              "I'm glad you're feeling good! What can I do for you?"
+            ])
+
+          sentiment == :negative ->
+            Enum.random([
+              "It seems like you might be upset. How can I assist you?",
+              "I'm here to help. What's bothering you?",
+              "I'm sorry to hear that. How can I support you?"
+            ])
+
+          sentiment == :neutral ->
+            Enum.random([
+              "I see you have a neutral sentiment. How can I assist you?",
+              "It looks like you're feeling neutral. How can I help?",
+              "Your message seems neutral. What do you need help with?"
+            ])
+
+          true ->
+            Enum.random([
+              "I'm not sure how to respond to that.",
+              "Could you clarify what you mean?",
+              "I need a bit more information to respond properly."
+            ])
+        end
+    end
+  end
+
+  # Helper functions for pattern matching
+  defp match_greetings(message) do
+    greetings = ~r/\b(hello|hi|hey|greetings|good morning|good afternoon|good evening)\b/i
+    Regex.match?(greetings, message)
+  end
+
+  defp match_farewells(message) do
+    farewells = ~r/\b(goodbye|bye|see you|farewell|take care|later)\b/i
+    Regex.match?(farewells, message)
+  end
+
+  defp match_questions(message) do
+    questions = ~r/\?\s*$|^how|^what|^why|^where|^when|^which/i
+    Regex.match?(questions, message)
+  end
+
+
+
+
+  defp generate_response(message) do
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = [
+      {"Authorization", "Bearer #{@api_key}"},
+      {"Content-Type", "application/json"}
+    ]
+
+    body = %{
+      "model" => "gpt-3.5-turbo",
+      "messages" => [
+        %{"role" => "user", "content" => message}
+      ],
+      "max_tokens" => 150
+    }
+    |> Jason.encode!()
+
+    case HTTPoison.post(url, body, headers) do
+      {:ok, %HTTPoison.Response{body: response_body}} ->
+        IO.puts("Raw response body:")
+        IO.inspect(response_body)
+
+        case Jason.decode(response_body) do
+          {:ok, %{"choices" => [%{"message" => %{"content" => response_text}} | _]}} ->
+            IO.puts("Parsed response text:")
+            IO.inspect(response_text)
+
+            response_text
+            |> String.trim()
+          {:ok, %{"error" => %{"code" => "insufficient_quota"}}} ->
+            "Sorry, your quota for the GPT model is insufficient. Your response will be generated statically based on our NLP training set."
+          _ ->
+            "Sorry, I couldn't understand the response."
+        end
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        IO.puts("Error reason:")
+        IO.inspect(reason)
+
+        "Sorry, there was an error processing your request."
+    end
+  end
+
+
+  @positive_words [
+    "happy", ":)", "joyful", "delighted", "pleased", "content", "satisfied", "ecstatic",
+    "elated", "thrilled", "grateful", "thankful", "fortunate", "blessed", "cheerful",
+    "optimistic", "hopeful", "enthusiastic", "excited", "proud", "amazed", "impressed",
+    "inspired", "uplifted", "encouraged", "motivated", "exhilarated", "invigorated",
+    "vibrant", "radiant", "wonderful", "fantastic", "great", "awesome", "amazing",
+    "excellent", "outstanding", "superb", "brilliant", "terrific", "marvelous",
+    "fabulous", "splendid", "remarkable", "magnificent", "stunning", "spectacular",
+    "incredible", "admirable", "charming", "lovely", "beautiful", "elegant", "graceful",
+    "pleasant", "positive", "nice", "kind", "generous", "benevolent", "supportive",
+    "helpful", "reliable", "trustworthy", "honest", "fair", "just", "considerate",
+    "friendly", "warm", "caring", "affectionate", "tender", "compassionate", "sympathetic",
+    "understanding", "respectful", "mindful", "thoughtful", "dedicated", "committed",
+    "passionate", "enthusiastic", "zealous", "eager", "dynamic", "vibrant", "lively",
+    "exciting", "stimulating", "refreshing", "energizing", "inviting", "engaging",
+    "captivating", "enchanting", "magical", "wonderful", "joyous", "celebratory",
+    "buoyant", "sanguine", "jubilant", "radiant", "vivacious", "uplifting", "pleasant",
+    "favorable", "promising", "beneficial", "fruitful", "successful", "prosperous",
+    "triumphant", "victorious", "accomplished", "fulfilled", "inspired", "motivated",
+    "rejuvenated", "invigorated", "refreshed", "renewed", "alive", "satisfied", "cheery",
+    "upbeat", "positive", "good", "great", "fantastic", "terrific", "wonderful",
+    "awesome", "excellent", "super", "splendid", "remarkable", "incredible", "brilliant",
+    "phenomenal", "superior", "amazing", "impressive", "extraordinary", "outstanding",
+    "remarkable", "praiseworthy", "commendable", "noteworthy", "excellent", "impeccable",
+    "stellar", "prime", "first-rate", "top-notch", "superb", "exceptional", "magnificent",
+    "glorious", "radiant", "vivid", "luminous", "bright", "dazzling", "shining",
+    "sparkling", "gleaming", "brilliant", "vivid", "lively", "dynamic", "animated",
+    "cheerful", "merry", "jovial", "happy-go-lucky", "contented", "fulfilled", "euphoric",
+    "😊", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😎", "🤗", "🥳", "🤩", "🙌", "👏",
+    "🌟", "✨", "🎉", "🥰", ":D", ":-)", ":]", ":}","^_^"
+  ]
+
+
+
+  @negative_words [
+    # General Negative Terms
+    "bad", "awful", "terrible", "horrible", "dreadful", "poor", "miserable", "unpleasant",
+    "disappointing", "sad", "depressing", "distressing", "negative", "unfortunate", "unhappy",
+    "dismal", "painful", "distasteful", "regretful", "frustrating", "angry", "upset",
+    "annoying", "irritating", "disturbing", "revolting", "repulsive", "sickening", "disgusting",
+    "shocking", "appalling", "grotesque", "repugnant", "vile", "loathsome", "wretched",
+    "abominable", "detestable", "repellent", "unbearable", "intolerable", "unacceptable",
+    "unseemly", "disgraceful", "dismal", "bleak", "regrettable", "heartbreaking",
+    "disheartening", "deplorable", "shameful", "atrocious", "heinous", "abominable",
+
+    # Racial and Ethnic Slurs
+    "nigger", "chink", "spic", "gook", "raghead", "wetback", "sandnigger", "coon",
+    "dago", "guinea", "haji", "honky", "jap", "kraut", "mick", "paki", "pollock",
+    "slope", "wop", "yid", "zipperhead", "boong", "gook", "hymie", "kike", "nazi",
+    "redskin", "skid", "spade", "towelhead", "tribal", "wetback", "brownie", "spade",
+
+    # Gender and Sexuality Slurs
+    "tranny", "trannie", "sexchange", "faggotry", "lesbo", "dyke", "queer", "homosexual",
+    "transvestite", "transsexual", "twink", "shemale", "butch", "pansy", "chick", "bender",
+    "straight", "gay", "bi", "homo", "sexist", "misogynistic", "misandrist", "chauvinist",
+    "rape", "molestation", "abuse", "pervert", "deviant", "slut", "whore", "hooker",
+    "escort", "callgirl", "prostitute", "stripper", "stipper", "naked", "bareback",
+    "peep", "streaking", "swinger", "incest", "fistfuck", "sadism", "masochism",
+    "anal", "pussy", "cum", "jizz", "bukkake", "orgasm", "porn", "sodomy",
+
+    # Discriminatory and Insulting Terms
+    "racism", "bigot", "xenophobic", "hate", "bigotry", "discrimination", "abusive",
+    "harassment", "bullying", "slur", "discriminatory", "offensive", "insulting",
+    "derogatory", "unethical", "profane", "vulgar", "obscene", "indecent", "disgraceful",
+    "unseemly", "unfit", "distasteful", "unacceptable", "intolerable", "dismal",
+    "grating", "annoying", "irritating", "disturbing", "off-putting", "revolting",
+    "repulsive", "despicable", "heinous", "atrocious", "abominable", "wretched",
+    "repugnant", "loathsome", "deplorable", "sickening", "shameful", "disgusting",
+    "unpleasant", "heartbreaking", "shocking", "appalling", "grotesque", "repellent",
+    "revulsive", "reprehensible", "degrading", "demeaning", "oppressive", "threatening",
+    "menacing", "harsh", "cruel", "inhuman",
+
+    "😠", "😡", "🤬", "😢", "😭", "😞", "😔", "😟", "😰", "😥", "😫", "😩", "😿", "😣",
+    "💔", "🤯", "😧", "🙁", "😒", "🤢", "🤮", "😵", "🤕", "😖", "😤", "🤬", "😨", "😫",
+    ":(", ":-(", ":/", ":|", ":(", ">:("
+  ]
+
+
+
+  @forbidden_words [
+    # General Offensive Terms
+    "abuse", "asshole", "bastard", "bitch", "cunt", "dick", "fag", "faggot",
+    "fuck", "motherfucker", "piss", "shit", "slut", "twat", "whore", "wanker",
+    "douchebag", "cocksucker", "prick", "cocks", "vagina", "penis", "fist", "rape",
+    "molest", "pedophile", "retard", "idiot", "moron", "simpleton", "dumbass",
+    "dumbfuck", "shithead", "fuckface", "fucktard", "prickface", "shitfuck",
+    "slutbag", "whorebag", "cumslut", "pussylips", "ballbag", "cockbag", "cuntface",
+    "dickhead", "dickwad", "cocksucking", "asslicking", "pussy", "butt", "asshole",
+    "cunt", "cocksucker", "motherfucking", "bastard", "douche", "blowjob", "handjob",
+    "cumshot", "deepthroat", "gangbang", "fisting", "sodomize", "sex", "porn", "fetish",
+    "anal", "vulgar", "obscene", "indecent", "blasphemy", "sacrilegious", "inappropriate",
+
+    # Racial and Ethnic Slurs
+    "nigger", "chink", "spic", "gook", "raghead", "wetback", "cameltoe",
+    "sandnigger", "coon", "dago", "guinea", "haji", "honky", "jap", "kraut",
+    "mick", "paki", "pollock", "slope", "wop", "yid", "zipperhead", "boong",
+    "gook", "hymie", "kike", "nazi", "redskin", "skid", "spade", "towelhead",
+    "tribal", "wetback", "brownie", "spade", "racial", "ethnic", "savage",
+
+
+    "tranny", "trannie", "sexchange", "faggotry", "lesbo", "dyke", "queer", "homosexual",
+    "transvestite", "transsexual", "twink", "shemale", "butch", "pansy", "chick",
+    "bender", "straight", "gay", "bi", "homo", "sexist", "misogynistic", "misandrist",
+    "chauvinist", "rape", "molestation", "abuse", "pervert", "deviant", "slut", "whore",
+    "hooker", "escort", "callgirl", "prostitute", "stripper", "stipper", "naked",
+    "bareback", "peep", "streaking", "swinger", "incest", "fistfuck", "sadism",
+    "masochism", "anal", "pussy", "cum", "jizz", "bukkake", "orgasm", "porn", "sodomy",
+
+
+    "racism", "bigot", "xenophobic", "hate", "bigotry", "discrimination", "abusive",
+    "harassment", "bullying", "slur", "discriminatory", "offensive", "insulting",
+    "derogatory", "unethical", "profane", "vulgar", "obscene", "indecent", "disgraceful",
+    "unseemly", "unfit", "distasteful", "unacceptable", "intolerable", "dismal", "grating",
+    "annoying", "irritating", "disturbing", "off-putting", "revolting", "repulsive",
+    "despicable", "heinous", "atrocious", "abominable", "wretched", "repugnant",
+    "loathsome", "deplorable", "shameful", "sickening", "disgusting", "unpleasant",
+    "heartbreaking", "shocking", "appalling", "grotesque", "repellent", "repugnant",
+    "vile", "loathsome", "wretched", "abominable", "distasteful", "insufferable",
+    "intolerable", "unbearable", "detestable", "revulsive", "reprehensible",
+    "degrading", "degrading", "disrespectful", "insulting", "dehumanizing",
+    "demeaning", "oppressive", "threatening", "menacing", "harsh", "cruel", "inhuman"
+  ]
+
+
+
+    def analyze_sentiment(message) do
+      message_lower = String.downcase(message)
+
+      if contains_any?(message_lower, @forbidden_words) do
+        {:forbidden, "Your message contains inappropriate content."}
+      else
+        sentiment =
+          if contains_any?(message_lower, @positive_words) do
+            :positive
+          else
+            if contains_any?(message_lower, @negative_words) do
+              :negative
+            else
+              :neutral
+            end
+
+        end
+
+        {:ok, sentiment}
+      end
+    end
+
+    defp contains_any?(message, words) do
+      Enum.any?(words, &String.contains?(message, &1))
+    end
+  end
+
+
+
+     'id': 'Indonesian',
+            'en': 'English',
+            'es': 'Spanish',
+            'fr': 'French',
+            'de': 'German',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'nl': 'Dutch',
+            'ru': 'Russian',
+            'zh': 'Chinese',
+            'ja': 'Japanese',
+            'ko': 'Korean',
+            'ar': 'Arabic',
+            'fi': 'Finnish',
+            'cy': 'Welsh',
+            'pl': 'Polish',
+            'tr': 'Turkish',
+            'sv': 'Swedish',
+            'da': 'Danish',
+            'no': 'Norwegian',
+            'hu': 'Hungarian',
+            'ro': 'Romanian',
+            'cs': 'Czech',
+            'sk': 'Slovak',
+            'sl': 'Slovenian',
+            'bg': 'Bulgarian',
+            'hr': 'Croatian',
+            'lt': 'Lithuanian',
+            'lv': 'Latvian',
+            'et': 'Estonian',
+            'el': 'Greek',
+            'he': 'Hebrew'
